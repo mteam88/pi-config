@@ -1,0 +1,101 @@
+# Agent instructions and private Pi configuration
+AGENTS.md
+CLAUDE.md
+auth*
+settings*
+trust*
+models*
+credentials*
+secrets*
+
+# Pi runtime state and machine-specific integrations
+/sessions/
+/.pi/
+/workflows/
+/history/
+run-history*
+session-history*
+pi-cliproxyapi/
+cliproxyapi-claude-code/
+cursor-bridge-provider/
+claude-usage/
+ntfy*
+/assets/
+screenshot*
+screenshots/
+
+# Installed dependencies, downloaded binaries, and package caches
+node_modules/
+bin/
+git/
+npm/
+.npm/
+.yarn/
+.pnpm-store/
+
+# Environment files; explicitly named examples must be reviewed and sanitized
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.csr
+*.cert
+*.der
+id_rsa*
+id_ed25519*
+.ssh/
+
+# Logs, history, temporary files, and backups
+*.log
+*.log.*
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+*~
+log/
+logs/
+tmp/
+temp/
+
+# Build, test, coverage, and tool caches
+coverage/
+dist/
+build/
+out/
+target/
+.cache/
+cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+
+# Databases and line-oriented runtime data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.jsonl
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
