@@ -5,9 +5,13 @@
  * - Popup UI: arrow keys or number keys to pick, Enter to confirm
  * - "Write my own answer" opens an inline editor (Esc returns to the options)
  * - Esc on the options dismisses the question (the model is told you declined)
+ * - Optional global askUserQuestionTimeout setting auto-continues after inactivity
  */
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  getAgentDir,
+  type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
 import {
   Editor,
   type EditorTheme,
@@ -25,6 +29,11 @@ import {
   ASK_USER_TOOL_DESCRIPTION,
   buildAskUserResultMessage,
 } from "./prompt.ts";
+import {
+  getIdleTimeoutSnapshot,
+  loadAskUserQuestionTimeout,
+  resetIdleTimeoutAfterActivity,
+} from "./src/timeout.ts";
 
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 5;
@@ -59,13 +68,19 @@ interface AskUserDetails {
   answer: string | null;
   wasCustom: boolean;
   cancelled: boolean;
+  timedOut: boolean;
+  afkTimeoutMs?: number;
 }
 
-type SelectionResult = {
-  answer: string;
-  wasCustom: boolean;
-  index?: number;
-} | null;
+type SelectionResult =
+  | {
+      kind: "answer";
+      answer: string;
+      wasCustom: boolean;
+      index?: number;
+    }
+  | { kind: "timeout"; afkTimeoutMs: number }
+  | null;
 
 interface DisplayOption {
   label: string;
@@ -110,6 +125,7 @@ export default function askUser(pi: ExtensionAPI) {
         text: string,
         answer: string | null = null,
         wasCustom = false,
+        afkTimeoutMs?: number,
       ) => ({
         content: [{ type: "text" as const, text }],
         details: {
@@ -117,7 +133,9 @@ export default function askUser(pi: ExtensionAPI) {
           options: params.options.map((o) => o.label),
           answer,
           wasCustom,
-          cancelled: answer === null,
+          cancelled: answer === null && afkTimeoutMs === undefined,
+          timedOut: afkTimeoutMs !== undefined,
+          ...(afkTimeoutMs === undefined ? {} : { afkTimeoutMs }),
         } satisfies AskUserDetails,
       });
 
@@ -138,6 +156,7 @@ export default function askUser(pi: ExtensionAPI) {
         return reply(buildAskUserResultMessage({ kind: "cancelled" }));
       }
 
+      const timeoutMs = await loadAskUserQuestionTimeout(getAgentDir());
       const allOptions: DisplayOption[] = [
         ...params.options,
         { label: "Write my own answer…", isOther: true },
@@ -150,10 +169,16 @@ export default function askUser(pi: ExtensionAPI) {
           let cachedLines: string[] | undefined;
 
           let settled = false;
+          let timeoutInterval: ReturnType<typeof setInterval> | undefined;
+          let lastActivityAt = Date.now();
+          let remainingSeconds =
+            timeoutMs === null ? 0 : Math.ceil(timeoutMs / 1000);
+          let showCountdown = false;
 
           function finish(result: SelectionResult) {
             if (settled) return;
             settled = true;
+            if (timeoutInterval) clearInterval(timeoutInterval);
             uiSignal.removeEventListener("abort", cancel);
             done(result);
           }
@@ -180,7 +205,7 @@ export default function askUser(pi: ExtensionAPI) {
           editor.onSubmit = (value) => {
             const trimmed = value.trim();
             if (trimmed) {
-              finish({ answer: trimmed, wasCustom: true });
+              finish({ kind: "answer", answer: trimmed, wasCustom: true });
             } else {
               editMode = false;
               editor.setText("");
@@ -201,6 +226,7 @@ export default function askUser(pi: ExtensionAPI) {
               refresh();
             } else {
               finish({
+                kind: "answer",
                 answer: selected.label,
                 wasCustom: false,
                 index: index + 1,
@@ -208,7 +234,49 @@ export default function askUser(pi: ExtensionAPI) {
             }
           }
 
+          function recordActivity(): boolean {
+            if (timeoutMs === null) return true;
+            const now = Date.now();
+            const resetAt = resetIdleTimeoutAfterActivity(
+              timeoutMs,
+              lastActivityAt,
+              now,
+            );
+            if (resetAt === null) {
+              finish({ kind: "timeout", afkTimeoutMs: timeoutMs });
+              return false;
+            }
+            const wasShowingCountdown = showCountdown;
+            lastActivityAt = resetAt;
+            remainingSeconds = Math.ceil(timeoutMs / 1000);
+            showCountdown = false;
+            if (wasShowingCountdown) refresh();
+            return true;
+          }
+
+          function updateTimeout() {
+            if (timeoutMs === null || settled) return;
+            const snapshot = getIdleTimeoutSnapshot(
+              timeoutMs,
+              lastActivityAt,
+              Date.now(),
+            );
+            if (snapshot.timedOut) {
+              finish({ kind: "timeout", afkTimeoutMs: timeoutMs });
+              return;
+            }
+            if (
+              snapshot.remainingSeconds !== remainingSeconds ||
+              snapshot.showCountdown !== showCountdown
+            ) {
+              remainingSeconds = snapshot.remainingSeconds;
+              showCountdown = snapshot.showCountdown;
+              refresh();
+            }
+          }
+
           function handleInput(data: string) {
+            if (!recordActivity()) return;
             if (editMode) {
               if (matchesKey(data, Key.escape)) {
                 editMode = false;
@@ -301,6 +369,16 @@ export default function askUser(pi: ExtensionAPI) {
             }
 
             lines.push("");
+            if (showCountdown) {
+              add(
+                theme.fg(
+                  "dim",
+                  ` auto-continue in ${remainingSeconds}s · any key to stay`,
+                ),
+              );
+            } else {
+              lines.push("");
+            }
             if (editMode) {
               add(theme.fg("dim", " Enter submit • Esc back to options"));
             } else {
@@ -317,6 +395,11 @@ export default function askUser(pi: ExtensionAPI) {
             return lines;
           }
 
+          if (timeoutMs !== null) {
+            timeoutInterval = setInterval(updateTimeout, 1000);
+            timeoutInterval.unref?.();
+          }
+
           return {
             render,
             invalidate: () => {
@@ -324,6 +407,7 @@ export default function askUser(pi: ExtensionAPI) {
             },
             handleInput,
             dispose: () => {
+              if (timeoutInterval) clearInterval(timeoutInterval);
               uiSignal.removeEventListener("abort", cancel);
             },
           };
@@ -346,6 +430,18 @@ export default function askUser(pi: ExtensionAPI) {
 
       if (!result) {
         return reply(buildAskUserResultMessage({ kind: "dismissed" }));
+      }
+
+      if (result.kind === "timeout") {
+        return reply(
+          buildAskUserResultMessage({
+            kind: "timeout",
+            afkTimeoutMs: result.afkTimeoutMs,
+          }),
+          null,
+          false,
+          result.afkTimeoutMs,
+        );
       }
 
       if (result.wasCustom) {
@@ -390,6 +486,17 @@ export default function askUser(pi: ExtensionAPI) {
       if (!details) {
         const first = result.content[0];
         return new Text(first?.type === "text" ? first.text : "", 0, 0);
+      }
+
+      if (details.timedOut && details.afkTimeoutMs !== undefined) {
+        return new Text(
+          theme.fg(
+            "warning",
+            `No response after ${Math.round(details.afkTimeoutMs / 1000)}s — continued without an answer`,
+          ),
+          0,
+          0,
+        );
       }
 
       if (details.cancelled || details.answer === null) {

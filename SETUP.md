@@ -53,6 +53,18 @@ same path while the package is installed. Use `pi config` to review and
 enable/disable individual resources. In Pi, open `/settings` to select
 `github-dark-default` if desired.
 
+The ask-user extension can optionally continue after an idle question instead
+of waiting forever. Set `askUserQuestionTimeout` in your existing global
+`~/.pi/agent/settings.json` to `"60s"`, `"5m"`, or `"10m"`. Use `"never"` or
+omit the field to disable the timeout. A timeout never implies approval or
+consent for an action that requires user authorization. This repository
+deliberately does not ship or overwrite `settings.json`.
+
+The task extension registers `TaskCreate`, `TaskGet`, `TaskList`, and
+`TaskUpdate`, shows up to five tasks in the footer, and exposes the full panel
+through `/todos` or Ctrl+Alt+T. Task state and metadata are stored in the Pi
+session transcript, so do not put credentials or other secrets in them.
+
 To remove the package later:
 
 ```sh

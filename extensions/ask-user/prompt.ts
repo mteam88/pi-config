@@ -27,6 +27,7 @@ export function buildAskUserResultMessage(
     | { kind: "no-ui" }
     | { kind: "cancelled" }
     | { kind: "dismissed" }
+    | { kind: "timeout"; afkTimeoutMs: number }
     | { kind: "custom"; answer: string }
     | { kind: "selected"; answer: string; index: number | undefined },
 ) {
@@ -37,6 +38,8 @@ export function buildAskUserResultMessage(
       return "Cancelled";
     case "dismissed":
       return "User dismissed the question without answering. Do not assume an answer; proceed accordingly or ask differently.";
+    case "timeout":
+      return `No response after ${Math.round(outcome.afkTimeoutMs / 1000)}s — the user may be away from keyboard. A timeout is not approval or consent. Continue only with work that does not require user authorization; otherwise leave the action pending and re-ask later.`;
     case "custom":
       return `User wrote their own answer: ${outcome.answer}`;
     case "selected":

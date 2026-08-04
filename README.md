@@ -11,12 +11,14 @@ additional extensions and local adaptations. See [CREDITS.md](CREDITS.md).
 
 ## Included
 
-- `ask-user`: structured multiple-choice questions
+- `ask-user`: structured multiple-choice questions with an optional idle timeout
 - `background-terminals`: long-running shell commands with status and output UI
 - `copy-all`: copy the current response or transcript content
 - `file-search`: first-class `fd` and `rg` tools with portable binary discovery
 - `git-info` and `model-info`: status-line context
 - `subagents`: managed Pi, Codex, Claude, and Cursor CLI backends
+- `todo-progress`: persistent session tasks with footer progress and an
+  interactive panel
 - `ui-customization`: the configured footer and interface customizations
 - `workflows`: multi-stage agent workflows and their dashboard
 - shared support modules, matching skills, and the GitHub Dark Default theme
@@ -41,13 +43,13 @@ Treat this repository as trusted code only after reviewing it:
 For stronger isolation, run Pi in an operating-system sandbox, container, or
 virtual machine with only the files and credentials needed for the task.
 
-The Pi 0.80.x dependency stack currently brings two transitive npm advisories
-through `@earendil-works/pi-coding-agent`'s embedded shrinkwrap:
-`brace-expansion` (high) and `protobufjs` (moderate). There is no honest local
-root-lockfile fix because `npm ci` installs the versions pinned by that upstream
-shrinkwrap even when a root lock record or override says otherwise. Update Pi
-when upstream publishes a compatible fixed release, then rerun
-`npm audit --omit=dev`.
+The Pi 0.80.x dependency stack currently brings transitive npm advisories
+through `@earendil-works/pi-coding-agent`'s embedded shrinkwrap, including
+`brace-expansion` (high), `undici` (high and moderate), and `protobufjs`
+(moderate). There is no honest local root-lockfile fix because `npm ci` installs
+the versions pinned by that upstream shrinkwrap even when a root lock record or
+override says otherwise. Update Pi when upstream publishes a compatible fixed
+release, then rerun `npm audit --omit=dev`.
 
 ## Write your own AGENTS.md
 

@@ -17,4 +17,6 @@ Call `subagent_spawn` with a complete `prompt`, short `name`, chosen `harness`, 
 - `subagent_cancel({ ids })`: stop runs while preserving partial transcripts.
 - `/subagents`: inspect or take over a run interactively.
 
+Subagents auto-compact their context when it fills. A run showing ~100% context usage is NOT stuck and NOT doomed — it will compact and continue. Do not cancel a subagent for high context usage alone; cancel only for genuine problems (wrong direction, no progress across multiple checks, task obsolete).
+
 Results return automatically. After spawning, continue useful parent work instead of immediately waiting. Spawn independent tasks separately when they can run in parallel, and use `subagent_wait` only when their results are required before proceeding.

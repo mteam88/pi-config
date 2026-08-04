@@ -16,7 +16,7 @@
     "check": "tsc --noEmit",
     "format": "prettier --write \"extensions/**/*.{ts,cjs}\" \"*.json\"",
     "format:check": "prettier --check \"extensions/**/*.{ts,cjs}\" \"*.json\"",
-    "test": "npm --prefix extensions/background-terminals test && npm --prefix extensions/git-info test && node --test --experimental-strip-types extensions/shared/*.test.ts extensions/workflows/*.test.ts && npm --prefix extensions/subagents test && npm --prefix extensions/file-search test",
+    "test": "npm --prefix extensions/background-terminals test && npm --prefix extensions/git-info test && node --test --experimental-strip-types extensions/ask-user/*.test.ts extensions/shared/*.test.ts extensions/todo-progress/*.test.ts extensions/workflows/*.test.ts && npm --prefix extensions/subagents test && npm --prefix extensions/file-search test",
     "test:live": "npm --prefix extensions/subagents run test:live"
   }
 }
